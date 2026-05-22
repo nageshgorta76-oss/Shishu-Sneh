@@ -1,5 +1,6 @@
-from dotenv import load_dotenv
 import os
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -12,6 +13,14 @@ api_key = os.getenv("GEMINI_API_KEY")
 
 
 def chatbot_response(question, language="English"):
+    if not question or not question.strip():
+        empty_responses = {
+            "English": "Please type a baby care question first.",
+            "Hindi": "कृपया पहले बच्चे की देखभाल से जुड़ा प्रश्न लिखें।",
+            "Kannada": "ದಯವಿಟ್ಟು ಮೊದಲು ಮಗುವಿನ ಆರೈಕೆ ಕುರಿತು ಪ್ರಶ್ನೆಯನ್ನು ಬರೆಯಿರಿ.",
+        }
+        return empty_responses.get(language, empty_responses["English"])
+
     normalized_question = question.strip().lower()
 
     language_rules = {

@@ -1,6 +1,8 @@
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from html import escape
+from hmac import compare_digest
 
 from chatbot import chatbot_response
 from database import delete_baby_data, insert_data, view_data
@@ -15,7 +17,7 @@ st.set_page_config(
 )
 
 try:
-    ADMIN_PASSWORD = st.secrets["admin_password"]
+    ADMIN_PASSWORD = str(st.secrets["admin_password"])
 except Exception:
     ADMIN_PASSWORD = "12345"
 
@@ -75,12 +77,30 @@ def render_soft_card(title, body):
     st.markdown(
         f"""
 <div class="soft-card">
-    <h4>{title}</h4>
-    <p>{body}</p>
+    <h4>{escape(title)}</h4>
+    <p>{escape(body)}</p>
 </div>
 """,
         unsafe_allow_html=True,
     )
+
+
+def calculate_bmi(weight_kg, height_cm):
+    if height_cm <= 0:
+        return 0
+    return weight_kg / ((height_cm / 100) ** 2)
+
+
+def validate_baby_data(name, age, weight, height, language_text):
+    if not name.strip():
+        return language_text["name_warning"]
+    if not 0 <= age <= 12:
+        return language_text["age_warning"]
+    if not 1 <= weight <= 15:
+        return language_text["weight_warning"]
+    if not 30 <= height <= 100:
+        return language_text["height_warning"]
+    return ""
 
 
 def reminder_messages(age_months, language_text):
@@ -163,10 +183,16 @@ translations = {
         "save": "Save Baby Data",
         "saved": "Baby data saved successfully!",
         "name_warning": "Please enter the baby's name before saving.",
+        "age_warning": "Please enter an age between 0 and 12 months.",
+        "weight_warning": "Please enter a weight between 1 and 15 kg.",
+        "height_warning": "Please enter a height between 30 and 100 cm.",
         "weight_metric": "Weight",
         "height_metric": "Height",
         "record_count": "Saved Records",
         "records": "Saved Baby Records",
+        "dashboard_summary": "Dashboard Summary",
+        "download_records": "Download Records",
+        "bmi_metric": "BMI",
         "record_empty": "No baby records yet. Save the first record from the dashboard.",
         "record_columns": ["ID", "Name", "Age (Months)", "Weight (Kg)", "Height (cm)"],
         "admin_login": "Admin Login",
@@ -301,10 +327,16 @@ translations = {
         "save": "बच्चे का डेटा सहेजें",
         "saved": "बच्चे का डेटा सफलतापूर्वक सहेजा गया!",
         "name_warning": "सहेजने से पहले कृपया बच्चे का नाम दर्ज करें।",
+        "age_warning": "कृपया 0 से 12 महीने के बीच आयु दर्ज करें।",
+        "weight_warning": "कृपया 1 से 15 किलो के बीच वजन दर्ज करें।",
+        "height_warning": "कृपया 30 से 100 सेमी के बीच लंबाई दर्ज करें।",
         "weight_metric": "वजन",
         "height_metric": "लंबाई",
         "record_count": "सहेजे गए रिकॉर्ड",
         "records": "सहेजे गए बच्चे के रिकॉर्ड",
+        "dashboard_summary": "डैशबोर्ड सारांश",
+        "download_records": "रिकॉर्ड डाउनलोड करें",
+        "bmi_metric": "बीएमआई",
         "record_empty": "अभी कोई रिकॉर्ड नहीं है। डैशबोर्ड से पहला रिकॉर्ड सहेजें।",
         "record_columns": ["आईडी", "नाम", "आयु (महीने)", "वजन (किलो)", "लंबाई (सेमी)"],
         "admin_login": "एडमिन लॉगिन",
@@ -439,10 +471,16 @@ translations = {
         "save": "ಮಗುವಿನ ಡೇಟಾವನ್ನು ಉಳಿಸಿ",
         "saved": "ಮಗುವಿನ ಡೇಟಾ ಯಶಸ್ವಿಯಾಗಿ ಉಳಿಸಲಾಗಿದೆ!",
         "name_warning": "ಉಳಿಸುವ ಮೊದಲು ದಯವಿಟ್ಟು ಮಗುವಿನ ಹೆಸರನ್ನು ನಮೂದಿಸಿ.",
+        "age_warning": "ದಯವಿಟ್ಟು 0 ರಿಂದ 12 ತಿಂಗಳೊಳಗಿನ ವಯಸ್ಸನ್ನು ನಮೂದಿಸಿ.",
+        "weight_warning": "ದಯವಿಟ್ಟು 1 ರಿಂದ 15 ಕೆಜಿ ನಡುವಿನ ತೂಕವನ್ನು ನಮೂದಿಸಿ.",
+        "height_warning": "ದಯವಿಟ್ಟು 30 ರಿಂದ 100 ಸೆಂ.ಮೀ. ನಡುವಿನ ಎತ್ತರವನ್ನು ನಮೂದಿಸಿ.",
         "weight_metric": "ತೂಕ",
         "height_metric": "ಎತ್ತರ",
         "record_count": "ಉಳಿಸಿದ ದಾಖಲೆಗಳು",
         "records": "ಉಳಿಸಿದ ಮಗುವಿನ ದಾಖಲೆಗಳು",
+        "dashboard_summary": "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ಸಾರಾಂಶ",
+        "download_records": "ದಾಖಲೆಗಳನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ",
+        "bmi_metric": "ಬಿಎಂಐ",
         "record_empty": "ಇನ್ನೂ ಯಾವುದೇ ದಾಖಲೆಗಳಿಲ್ಲ. ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ನಿಂದ ಮೊದಲ ದಾಖಲೆ ಉಳಿಸಿ.",
         "record_columns": ["ಐಡಿ", "ಹೆಸರು", "ವಯಸ್ಸು (ತಿಂಗಳು)", "ತೂಕ (ಕೆಜಿ)", "ಎತ್ತರ (ಸೆಂ.ಮೀ)"],
         "admin_login": "ಆಡ್ಮಿನ್ ಲಾಗಿನ್",
@@ -595,11 +633,12 @@ if st.session_state.show_admin_login or st.session_state.admin_authenticated:
     if not st.session_state.admin_authenticated:
         admin_password_input = st.sidebar.text_input(
             t["admin_password"],
+            type="password",
             key="admin_password_input",
         )
 
         if st.sidebar.button(t["admin_submit"]):
-            if admin_password_input == ADMIN_PASSWORD:
+            if compare_digest(admin_password_input, ADMIN_PASSWORD):
                 st.session_state.admin_authenticated = True
                 st.sidebar.success(t["admin_success"])
                 st.rerun()
@@ -634,20 +673,23 @@ if menu == t["dashboard"]:
     baby_height = st.number_input(t["height"], min_value=30.0, max_value=100.0, value=65.0, step=0.5)
 
     if st.button(t["save"]):
-        if baby_name.strip():
+        validation_error = validate_baby_data(baby_name, baby_age, baby_weight, baby_height, t)
+        if not validation_error:
             insert_data(baby_name.strip(), baby_age, baby_weight, baby_height)
             st.success(t["saved"])
             records = view_data()
             records_df = pd.DataFrame(records, columns=["id", "name", "age", "weight", "height"])
         else:
-            st.warning(t["name_warning"])
+            st.warning(validation_error)
 
-    metric_col1, metric_col2, metric_col3 = st.columns(3)
+    metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
     with metric_col1:
         st.metric(t["weight_metric"], f"{baby_weight:.1f} Kg")
     with metric_col2:
         st.metric(t["height_metric"], f"{baby_height:.1f} cm")
     with metric_col3:
+        st.metric(t["bmi_metric"], f"{calculate_bmi(baby_weight, baby_height):.1f}")
+    with metric_col4:
         st.metric(t["record_count"], len(records_df))
 
     st.subheader(t["current_reminders"])
@@ -661,6 +703,12 @@ if menu == t["dashboard"]:
         display_df = records_df.copy()
         display_df.columns = t["record_columns"]
         st.dataframe(display_df, use_container_width=True, hide_index=True)
+        st.download_button(
+            t["download_records"],
+            data=display_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name="shishu_sneh_records.csv",
+            mime="text/csv",
+        )
 
     if st.session_state.admin_authenticated:
         st.markdown("---")
